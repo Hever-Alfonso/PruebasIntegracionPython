@@ -10,5 +10,8 @@ class UserClient:
         url = f"{self.base_url}/users/{user_id}"
         r = httpx.get(url, headers={"Accept": "application/json"}, timeout=5.0)
         if r.status_code == 200:
-            return r.json()
+            data = r.json()
+            if "first" not in data or "last" not in data:
+                return None
+            return data
         return None

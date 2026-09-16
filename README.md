@@ -35,19 +35,21 @@ pytest -q tests/test_part4_database.py
 
 **Parte 1 — Pregunta:** Si cambias el formato de salida del controlador, ¿qué otras capas tendrías que adaptar?
 
-Si `UserController.get_user_full_name` dejara de retornar un `str` y pasara a retornar, por ejemplo, un `dict`/JSON, habría que adaptar:
-- El propio `UserController` (el cambio en sí).
-- Cualquier consumidor del controlador (capa web/API o CLI) que dependa del formato anterior.
-- Los tests de integración que comparan contra strings literales.
+Si el controlador (`UserController`) empezara a devolver, por ejemplo, un `dict` en vez de un simple texto, habría que cambiar:
+- El controlador mismo (ahí está el cambio).
+- Quien lo use (por ejemplo una página web o una app que lo consuma).
+- Los tests, porque comparan contra un texto exacto.
 
-`UserService` y `InMemoryUserRepository` no necesitarían cambios: su contrato es interno y el controlador decide cómo exponer el dato hacia afuera. Esto ilustra el valor de separar capas: el cambio queda contenido en el controlador y en quien lo consume.
+El servicio (`UserService`) y el repositorio (`InMemoryUserRepository`) no cambiarían, porque ellos no saben nada del formato de salida; eso lo decide solo el controlador. Por eso separar en capas es útil: el cambio se queda solo en una parte.
 
 **Parte 2 — Pregunta:** ¿Por qué `test_order_calculator_uses_discount_engine` es una prueba de integración (y no solo unitaria)?
 
-La prueba no aísla `OrderCalculator` con un doble de prueba (mock/stub) para `DiscountEngine`: instancia el `DiscountEngine` real y lo inyecta en `OrderCalculator`, verificando el resultado combinado de `final_total`. Esto significa que:
-- Ejercita la colaboración real entre dos unidades, no el comportamiento de una sola clase aislada.
-- Verifica el contrato entre ambas (qué valor retorna `discount_for` y cómo lo consume `final_total`); si ese contrato se rompiera, una prueba unitaria con mock no lo detectaría.
-- El resultado esperado depende de la lógica de ambos módulos combinados (regla de descuento + cálculo de impuesto).
+Porque el test usa el `DiscountEngine` real, no uno inventado (mock). Junta dos piezas de verdad (`OrderCalculator` y `DiscountEngine`) y revisa que trabajen bien juntas. Si solo se probara `OrderCalculator` con un `DiscountEngine` falso, sería una prueba unitaria: probaría una sola pieza, no la unión de las dos.
 
-Una prueba unitaria de `OrderCalculator` reemplazaría `DiscountEngine` por un doble con un valor fijo, probando solo la aritmética en aislamiento. Aquí se prueba que las piezas reales funcionan correctamente juntas.
+**Parte 3 — Pregunta:** ¿Cuál es la diferencia entre mockear la librería HTTP y levantar un servidor simulado?
+
+- **Mockear la librería HTTP:** se engaña a la función que hace la llamada (`httpx.get`) para que devuelva una respuesta inventada, sin usar la red de verdad. Es rápido, pero no prueba si el cliente realmente sabe hablar por HTTP.
+- **Levantar un servidor simulado** (lo que hace este proyecto con `pytest_httpserver`): se prende un servidor de verdad en la máquina local, y el cliente le habla por HTTP de verdad (aunque sea local). Esto sí prueba la comunicación real: la URL, los códigos de respuesta, el JSON, etc.
+
+Por eso el servidor simulado es una prueba de integración, y el mock de la librería es más una prueba unitaria.
 
